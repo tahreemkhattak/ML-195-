@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full-Stack Machine Learning App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; background: #f4f6f8; color: #202733; }
+    h1 { text-align: center; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px #0001; }
+    label { display: block; margin-top: 10px; font-size: 14px; }
+    input { box-sizing: border-box; width: 100%; padding: 9px; margin-top: 4px; }
+    button { margin-top: 16px; padding: 10px 14px; border: 0; border-radius: 5px; cursor: pointer; background: #225edb; color: white; }
+    .result { margin-top: 14px; font-weight: bold; overflow-wrap: anywhere; }
+    .hint { font-size: 13px; color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Full-Stack Machine Learning App</h1>
+  <p>Use the forms below to send data to the FastAPI backend and receive model predictions.</p>
+  <div class="cards">
+    <section>
+      <h2>Regression: Diabetes Dataset</h2>
+      <p class="hint">Enter the 10 standardized feature values. Example values are provided to help test the form.</p>
+      <form id="regression-form">
+        <div id="regression-fields"></div>
+        <button type="submit">Predict number</button>
+      </form>
+      <div id="regression-result" class="result" aria-live="polite"></div>
+    </section>
+    <section>
+      <h2>Classification: Iris Flower</h2>
+      <p class="hint">Enter flower measurements in centimeters.</p>
+      <form id="classification-form">
+        <label>Sepal length (cm)<input name="sepal_length" type="number" step="any" value="5.1" required></label>
+        <label>Sepal width (cm)<input name="sepal_width" type="number" step="any" value="3.5" required></label>
+        <label>Petal length (cm)<input name="petal_length" type="number" step="any" value="1.4" required></label>
+        <label>Petal width (cm)<input name="petal_width" type="number" step="any" value="0.2" required></label>
+        <button type="submit">Predict Iris species</button>
+      </form>
+      <div id="classification-result" class="result" aria-live="polite"></div>
+    </section>
+  </div>
+
+<script>
+  const regressionNames = ["age", "sex", "bmi", "bp", "s1", "s2", "s3", "s4", "s5", "s6"];
+  const regressionExamples = [0.04, 0.05, 0.06, 0.02, -0.04, -0.03, -0.01, 0.02, 0.03, 0.01];
+  const fields = document.getElementById("regression-fields");
+
+  regressionNames.forEach((name, index) => {
+    const label = document.createElement("label");
+    label.textContent = name + " (standardized)";
+    const input = document.createElement("input");
+    input.name = name;
+    input.type = "number";
+    input.step = "any";
+    input.value = regressionExamples[index];
+    input.required = true;
+    label.appendChild(input);
+    fields.appendChild(label);
+  });
+
+  async function sendPrediction(url, payload, resultId) {
+    const output = document.getElementById(resultId);
+    output.textContent = "Calculating...";
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.detail ? JSON.stringify(result.detail) : "Request failed");
+      }
+      output.textContent = "Result: " + result.prediction;
+    } catch (error) {
+      output.textContent = "Error: " + error.message + ". Make sure the FastAPI server is running.";
+    }
+  }
+
+  document.getElementById("regression-form").addEventListener("submit", event => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const payload = {};
+    regressionNames.forEach(name => payload[name] = Number(formData.get(name)));
+    sendPrediction("/predict/regression", payload, "regression-result");
+  });
+
+  document.getElementById("classification-form").addEventListener("submit", event => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const payload = {};
+    ["sepal_length", "sepal_width", "petal_length", "petal_width"].forEach(
+      name => payload[name] = Number(formData.get(name))
+    );
+    sendPrediction("/predict/classification", payload, "classification-result");
+  });
+</script>
+</body>
+</html>
